@@ -1,0 +1,79 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local function getCharacterParts()
+	character = player.Character or player.CharacterAdded:Wait()
+	return character:WaitForChild("HumanoidRootPart"), character:GetDescendants()
+end
+
+local invisible = false
+local offsetY = -1000 -- 地下高度
+
+-- UI Button 建立
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "InvisibleGui"
+
+local btn = Instance.new("TextButton", gui)
+btn.Size = UDim2.new(0, 120, 0, 50)
+btn.Position = UDim2.new(0, 20, 1, -70)
+btn.Text = "隱形：OFF"
+btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.AutoButtonColor = true
+btn.TextScaled = true
+
+-- 隱藏建模部件
+local function hideCharacter()
+	local hrp, parts = getCharacterParts()
+	for _, part in pairs(parts) do
+		if part:IsA("BasePart") and part ~= hrp then
+			part.Anchored = true
+			part.CanCollide = false
+			part.LocalTransparencyModifier = 1
+			part.Position = hrp.Position + Vector3.new(0, offsetY, 0)
+		elseif part:IsA("Decal") then
+			part.Transparency = 1
+		end
+	end
+end
+
+-- 還原建模部件
+local function showCharacter()
+	local hrp, parts = getCharacterParts()
+	for _, part in pairs(parts) do
+		if part:IsA("BasePart") and part ~= hrp then
+			part.Anchored = false
+			part.CanCollide = true
+			part.LocalTransparencyModifier = 0
+		elseif part:IsA("Decal") then
+			part.Transparency = 0
+		end
+	end
+end
+
+-- 每幀維持隱形效果
+RunService.RenderStepped:Connect(function()
+	if invisible then
+		pcall(hideCharacter)
+	end
+end)
+
+-- 切換開關
+btn.MouseButton1Click:Connect(function()
+	invisible = not invisible
+	btn.Text = "隱形：" .. (invisible and "ON" or "OFF")
+	if not invisible then
+		showCharacter()
+	end
+end)
+
+-- 死亡後維持隱形
+player.CharacterAdded:Connect(function()
+	wait(1)
+	if invisible then
+		hideCharacter()
+	end
+end)
