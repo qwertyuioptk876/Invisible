@@ -1,0 +1,88 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local invisible = false
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "InvisToggleGUI"
+
+-- 建立按鈕
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 100, 0, 40)
+button.Position = UDim2.new(0, 20, 1, -60)
+button.Text = "隱形 OFF"
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Parent = gui
+
+-- 取得角色
+local function getCharacter()
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local hum = char:WaitForChild("Humanoid")
+	return char, hrp, hum
+end
+
+-- 隱藏角色模型，但保留控制與視角
+local function hideCharacter(char, hrp)
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= hrp then
+			part.LocalTransparencyModifier = 1
+			part.Anchored = true
+			part.CanCollide = false
+			part.Position = hrp.Position + Vector3.new(0, -9999, 0)
+		elseif part:IsA("Decal") then
+			part.Transparency = 1
+		end
+	end
+end
+
+-- 顯示角色
+local function showCharacter(char)
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.LocalTransparencyModifier = 0
+			part.Anchored = false
+			part.CanCollide = true
+		elseif part:IsA("Decal") then
+			part.Transparency = 0
+		end
+	end
+end
+
+-- 切換隱形
+local function toggleInvis()
+	local char, hrp, hum = getCharacter()
+	invisible = not invisible
+	button.Text = invisible and "隱形 ON" or "隱形 OFF"
+
+	if invisible then
+		hideCharacter(char, hrp)
+	else
+		showCharacter(char)
+	end
+end
+
+-- 按鈕控制
+button.MouseButton1Click:Connect(toggleInvis)
+
+-- 每幀保持地下狀態（只有建模移動）
+RunService.RenderStepped:Connect(function()
+	if invisible then
+		local char, hrp = getCharacter()
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") and part ~= hrp then
+				part.Position = hrp.Position + Vector3.new(0, -9999, 0)
+			end
+		end
+	end
+end)
+
+-- 重生後自動隱形
+player.CharacterAdded:Connect(function(char)
+	char:WaitForChild("HumanoidRootPart")
+	wait(1)
+	if invisible then
+		hideCharacter(char, char:WaitForChild("HumanoidRootPart"))
+	end
+end)
