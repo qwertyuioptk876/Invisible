@@ -1,0 +1,81 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local function getCharacter()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    return char, hrp
+end
+
+local invisible = false
+local hiddenOffset = Vector3.new(0, -999, 0)
+
+-- 建立 UI 按鈕
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "InvisibleGUI"
+
+local button = Instance.new("TextButton", gui)
+button.Size = UDim2.new(0, 120, 0, 50)
+button.Position = UDim2.new(0, 20, 1, -70)
+button.Text = "隱形 OFF"
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+
+-- 每幀強制部件維持地下
+local function keepInvisible(char, hrp)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part ~= hrp then
+            part.Anchored = true
+            part.CanCollide = false
+            part.LocalTransparencyModifier = 1
+            part.Position = hrp.Position + hiddenOffset
+        elseif part:IsA("Decal") then
+            part.Transparency = 1
+        end
+    end
+end
+
+-- 顯示角色
+local function restoreCharacter(char)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Anchored = false
+            part.CanCollide = true
+            part.LocalTransparencyModifier = 0
+        elseif part:IsA("Decal") then
+            part.Transparency = 0
+        end
+    end
+end
+
+-- 切換隱形狀態
+button.MouseButton1Click:Connect(function()
+    invisible = not invisible
+    button.Text = invisible and "隱形 ON" or "隱形 OFF"
+
+    local char, hrp = getCharacter()
+    if invisible then
+        keepInvisible(char, hrp)
+    else
+        restoreCharacter(char)
+    end
+end)
+
+-- 維持隱形狀態 + 避免擊退
+RunService.RenderStepped:Connect(function()
+    if invisible then
+        local char, hrp = getCharacter()
+        keepInvisible(char, hrp)
+    end
+end)
+
+-- 死亡後重新啟動
+player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart")
+    wait(1)
+    if invisible then
+        keepInvisible(char, char:WaitForChild("HumanoidRootPart"))
+    end
+end)
