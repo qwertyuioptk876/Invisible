@@ -1,0 +1,81 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- 控制變數
+local invisible = false
+local isRunning = false
+local modelOffsetY = -1000
+
+-- UI 建立
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "InvisibleToggleUI"
+
+local button = Instance.new("ImageButton")
+button.Size = UDim2.new(0, 80, 0, 80)
+button.Position = UDim2.new(0, 20, 1, -100)
+button.Image = "rbxassetid://6031071050" -- 圖示可替換
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.BorderSizePixel = 0
+button.BackgroundTransparency = 0.2
+button.Parent = screenGui
+button.AutoButtonColor = true
+
+local function hideModel()
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Anchored = true
+            part.CanCollide = false
+            part.LocalTransparencyModifier = 1
+            part.Position = hrp.Position + Vector3.new(0, modelOffsetY, 0)
+        elseif part:IsA("Decal") then
+            part.Transparency = 1
+        end
+    end
+end
+
+local function showModel()
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Anchored = false
+            part.CanCollide = true
+            part.LocalTransparencyModifier = 0
+        elseif part:IsA("Decal") then
+            part.Transparency = 0
+        end
+    end
+end
+
+-- 更新角色引用（防止死亡後失效）
+local function updateCharacter()
+    character = player.Character or player.CharacterAdded:Wait()
+    hrp = character:WaitForChild("HumanoidRootPart")
+end
+
+-- 持續監控模型維持在地下
+RunService.RenderStepped:Connect(function()
+    if invisible then
+        pcall(hideModel)
+    end
+end)
+
+-- 按鈕切換邏輯
+button.MouseButton1Click:Connect(function()
+    invisible = not invisible
+    if not invisible then
+        showModel()
+    end
+end)
+
+-- 死亡自動重新隱形
+player.CharacterAdded:Connect(function()
+    wait(1)
+    updateCharacter()
+    if invisible then
+        hideModel()
+    end
+end)
