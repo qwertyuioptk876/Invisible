@@ -1,0 +1,128 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local RunService = game:GetService("RunService")
+
+local isHidden = false
+local ignoreParts = {HumanoidRootPart = true}
+
+-- 按鈕 UI 設定
+local function createButton()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "InvisibleToggleGui"
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+
+	local button = Instance.new("TextButton")
+	button.Name = "ToggleButton"
+	button.Size = UDim2.new(0, 140, 0, 50)
+	button.Position = UDim2.new(0.5, -70, 1, -80)
+	button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	button.BorderSizePixel = 0
+	button.AutoButtonColor = false
+	button.Text = "隱形開啟"
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Font = Enum.Font.GothamSemibold
+	button.TextSize = 22
+	button.ClipsDescendants = true
+	button.AnchorPoint = Vector2.new(0.5, 0.5)
+	button.ZIndex = 2
+
+	-- 圖標
+	local icon = Instance.new("ImageLabel")
+	icon.Name = "Icon"
+	icon.Parent = button
+	icon.Size = UDim2.new(0, 28, 0, 28)
+	icon.Position = UDim2.new(0, 8, 0.5, -14)
+	icon.BackgroundTransparency = 1
+	icon.Image = "rbxassetid://3926305904" -- 預設圖標（你可以換成自己喜歡的）
+	icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	icon.ZIndex = 3
+
+	-- 修邊效果（陰影）
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = button
+
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Shadow"
+	shadow.Parent = button
+	shadow.Size = UDim2.new(1, 8, 1, 8)
+	shadow.Position = UDim2.new(0, -4, 0, -4)
+	shadow.Image = "rbxassetid://5053651444" -- 柔和陰影圖
+	shadow.ImageColor3 = Color3.new(0,0,0)
+	shadow.ImageTransparency = 0.6
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(20, 20, 180, 180)
+	shadow.ZIndex = 1
+
+	return screenGui, button
+end
+
+-- 移動角色建模地下
+local function hideCharacterModel()
+	if not character then return end
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and not ignoreParts[part.Name] then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CFrame = CFrame.new(0, -10000, 0)
+		end
+	end
+end
+
+-- 把建模還原正常位置（解除錨定）
+local function showCharacterModel()
+	if not character then return end
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and not ignoreParts[part.Name] then
+			part.Anchored = false
+			part.CanCollide = true
+			-- 還原位置：用 HumanoidRootPart 位置附近即可
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				part.CFrame = hrp.CFrame * CFrame.new(math.random(-2,2), 0, math.random(-2,2))
+			end
+		end
+	end
+end
+
+-- 防止被擊退時模型回到正常位置（持續錨定）
+RunService.Heartbeat:Connect(function()
+	if isHidden and character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") and not ignoreParts[part.Name] then
+				part.Anchored = true
+				part.CanCollide = false
+				part.CFrame = CFrame.new(0, -10000, 0)
+			end
+		end
+	end
+end)
+
+-- 主程式執行
+
+local screenGui, toggleButton = createButton()
+toggleButton.Parent = screenGui
+
+toggleButton.MouseButton1Click:Connect(function()
+	isHidden = not isHidden
+	if isHidden then
+		hideCharacterModel()
+		toggleButton.Text = "隱形關閉"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	else
+		showCharacterModel()
+		toggleButton.Text = "隱形開啟"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	end
+end)
+
+-- 重生自動套用狀態並保持按鈕
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	wait(0.5)
+	if isHidden then
+		hideCharacterModel()
+	end
+end)
