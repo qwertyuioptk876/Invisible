@@ -1,0 +1,63 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- 定義地下位置
+local UNDERGROUND_Y = -1000
+local visualParts = {}
+
+-- 取得除了 HumanoidRootPart 以外的建模部件
+local function getVisualParts()
+	local parts = {}
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			table.insert(parts, part)
+		end
+	end
+	return parts
+end
+
+-- 鎖定建模到地下
+local function lockVisualPartsUnderground()
+	RunService:BindToRenderStep("HideVisualModel", Enum.RenderPriority.Character.Value + 1, function()
+		for _, part in ipairs(visualParts) do
+			if part and part:IsDescendantOf(character) then
+				local pos = part.Position
+				part.Velocity = Vector3.zero
+				part.RotVelocity = Vector3.zero
+				part.CFrame = CFrame.new(pos.X, UNDERGROUND_Y, pos.Z)
+			end
+		end
+	end)
+end
+
+-- 防止 ragdoll 等狀態使角色亂飛
+local function blockHumanoidStates()
+	local blockStates = {
+		Enum.HumanoidStateType.FallingDown,
+		Enum.HumanoidStateType.Physics,
+		Enum.HumanoidStateType.PlatformStanding,
+		Enum.HumanoidStateType.Seated,
+	}
+	for _, state in ipairs(blockStates) do
+		humanoid:SetStateEnabled(state, false)
+	end
+end
+
+-- 重置角色時再套用隱藏
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = character:WaitForChild("Humanoid")
+	hrp = character:WaitForChild("HumanoidRootPart")
+	visualParts = getVisualParts()
+	blockHumanoidStates()
+end)
+
+-- 初始化
+visualParts = getVisualParts()
+blockHumanoidStates()
+lockVisualPartsUnderground()
