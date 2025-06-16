@@ -1,0 +1,115 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local UNDERGROUND_Y = -1000
+local isInvisible = false
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local function getVisualParts(char)
+	local parts = {}
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= hrp then
+			table.insert(parts, part)
+		end
+	end
+	return parts
+end
+
+local function hideModelUnderground()
+	local visualParts = getVisualParts(character)
+	for _, part in ipairs(visualParts) do
+		part.Anchored = true
+		part.CanCollide = false
+		part.CFrame = CFrame.new(part.Position.X, UNDERGROUND_Y, part.Position.Z)
+	end
+end
+
+local function showModel()
+	local visualParts = getVisualParts(character)
+	for _, part in ipairs(visualParts) do
+		part.Anchored = false
+		part.CanCollide = true
+	end
+end
+
+local function lockModelPosition()
+	RunService.RenderStepped:Connect(function()
+		if not isInvisible then return end
+		local visualParts = getVisualParts(character)
+		for _, part in ipairs(visualParts) do
+			if part:IsDescendantOf(workspace) then
+				if math.abs(part.Position.Y - UNDERGROUND_Y) > 2 then
+					part.CFrame = CFrame.new(part.Position.X, UNDERGROUND_Y, part.Position.Z)
+					part.Velocity = Vector3.zero
+				end
+			end
+		end
+	end)
+end
+
+local function blockRagdollStates()
+	local blockedStates = {
+		Enum.HumanoidStateType.FallingDown,
+		Enum.HumanoidStateType.Physics,
+		Enum.HumanoidStateType.Seated,
+		Enum.HumanoidStateType.PlatformStanding,
+	}
+	for _, state in ipairs(blockedStates) do
+		humanoid:SetStateEnabled(state, false)
+	end
+end
+
+local function toggleInvisibility()
+	isInvisible = not isInvisible
+	if isInvisible then
+		hideModelUnderground()
+	else
+		showModel()
+	end
+end
+
+local function createToggleButton()
+	local playerGui = player:WaitForChild("PlayerGui")
+	if playerGui:FindFirstChild("InvisibleToggleGui") then
+		return
+	end
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "InvisibleToggleGui"
+	screenGui.Parent = playerGui
+	screenGui.ResetOnSpawn = false
+	
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 150, 0, 50)
+	button.Position = UDim2.new(1, -160, 1, -60)
+	button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	button.TextColor3 = Color3.new(1,1,1)
+	button.Font = Enum.Font.SourceSansBold
+	button.TextSize = 24
+	button.Text = "切換隱形"
+	button.Parent = screenGui
+	
+	button.Activated:Connect(function()
+		toggleInvisibility()
+		button.Text = isInvisible and "隱形中" or "顯示中"
+	end)
+end
+
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	humanoid = character:WaitForChild("Humanoid")
+	hrp = character:WaitForChild("HumanoidRootPart")
+	if isInvisible then
+		hideModelUnderground()
+	end
+	blockRagdollStates()
+	lockModelPosition()
+end)
+
+createToggleButton()
+blockRagdollStates()
+lockModelPosition()
