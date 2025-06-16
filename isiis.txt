@@ -1,0 +1,130 @@
+-- 完整隱形 + 按鈕控制腳本
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+-- 按鈕UI創建函數
+local function createToggleButton()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "InvisibleToggleGui"
+    screenGui.ResetOnSpawn = false -- 重生不消失
+    screenGui.Parent = PlayerGui
+
+    local button = Instance.new("TextButton")
+    button.Name = "ToggleButton"
+    button.Size = UDim2.new(0, 140, 0, 50)
+    button.Position = UDim2.new(0.5, -70, 0.9, 0)
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    button.BorderSizePixel = 0
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 22
+    button.Text = "隱形開啟"
+    button.Parent = screenGui
+
+    -- 圖示（示範用，簡單圓形）
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "Icon"
+    icon.Size = UDim2.new(0, 24, 0, 24)
+    icon.Position = UDim2.new(0, 8, 0.5, -12)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://3926305904" -- 這是一個常用UI圖示資源
+    icon.Parent = button
+
+    -- 拖曳支援
+    local dragging
+    local dragInput
+    local dragStart
+    local startPos
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                    startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = button.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    button.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+
+    return button
+end
+
+-- 角色隱形功能
+local function setCharacterInvisible(character, invisible)
+    if not character then return end
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            if invisible then
+                part.LocalTransparencyModifier = 1
+                part.CanCollide = false
+            else
+                part.LocalTransparencyModifier = 0
+                part.CanCollide = true
+            end
+        elseif part:IsA("Decal") then
+            if invisible then
+                part.Transparency = 1
+            else
+                part.Transparency = 0
+            end
+        end
+    end
+end
+
+-- 按鈕狀態
+local invisibleEnabled = false
+
+-- 建立UI按鈕
+local button = createToggleButton()
+
+button.MouseButton1Click:Connect(function()
+    invisibleEnabled = not invisibleEnabled
+    local character = player.Character
+    if character then
+        setCharacterInvisible(character, invisibleEnabled)
+    end
+    if invisibleEnabled then
+        button.Text = "隱形關閉"
+    else
+        button.Text = "隱形開啟"
+    end
+end)
+
+-- 重生時自動恢復隱形狀態
+player.CharacterAdded:Connect(function(character)
+    if invisibleEnabled then
+        -- 等角色所有部件生成完
+        character:WaitForChild("HumanoidRootPart", 10)
+        setCharacterInvisible(character, true)
+    end
+end)
+
+-- 如果角色已經存在，啟動時也套用一次隱形
+if player.Character then
+    setCharacterInvisible(player.Character, invisibleEnabled)
+end
