@@ -1,0 +1,85 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local invisible = false
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "InvisToggleGUI"
+
+-- UI 按鈕
+local button = Instance.new("ImageButton")
+button.Size = UDim2.new(0, 80, 0, 80)
+button.Position = UDim2.new(0, 20, 1, -100)
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+button.Image = "rbxassetid://6031097225" -- 隨意圖示（你可改）
+button.Parent = gui
+
+local function getCharacter()
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local hum = char:WaitForChild("Humanoid")
+	return char, hrp, hum
+end
+
+-- 隱藏部件（除了HRP）
+local function hideModel(char, hrp)
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= hrp then
+			part.LocalTransparencyModifier = 1
+			part.Anchored = true
+			part.CanCollide = false
+			part.Position = hrp.Position + Vector3.new(0, -2000, 0)
+		elseif part:IsA("Decal") then
+			part.Transparency = 1
+		end
+	end
+end
+
+-- 顯示模型
+local function showModel(char)
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.LocalTransparencyModifier = 0
+			part.Anchored = false
+			part.CanCollide = true
+		elseif part:IsA("Decal") then
+			part.Transparency = 0
+		end
+	end
+end
+
+-- 切換隱形
+local function toggleInvisible()
+	invisible = not invisible
+	local char, hrp, hum = getCharacter()
+	if invisible then
+		hum.CameraOffset = Vector3.new(0, 0, 0) -- 鎖視角
+		hideModel(char, hrp)
+	else
+		hum.CameraOffset = Vector3.zero
+		showModel(char)
+	end
+end
+
+-- 每幀強制保持地下
+RunService.RenderStepped:Connect(function()
+	if invisible then
+		local char, hrp = getCharacter()
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") and part ~= hrp then
+				part.Position = hrp.Position + Vector3.new(0, -2000, 0)
+			end
+		end
+	end
+end)
+
+-- 死亡自動恢復隱形
+player.CharacterAdded:Connect(function(char)
+	char:WaitForChild("HumanoidRootPart")
+	wait(1)
+	if invisible then
+		hideModel(char, char:WaitForChild("HumanoidRootPart"))
+	end
+end)
+
+button.MouseButton1Click:Connect(toggleInvisible)
